@@ -1,5 +1,5 @@
 import { DAY_LABELS, EVENT, EXTRA_LABELS, EXTRA_PRICES_CENTS, FESTIVAL_DAYS, GARBA_DAYS, INITIAL_STOCK, TICKET_LABELS, TICKET_PRICES_CENTS } from "@/domain/catalog";
-import { getStock, usingRedis } from "@/data/store";
+import { getStock, usingDatabase } from "@/data/store";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export async function GET() {
       remaining: stock[id],
       soldOut: stock[id] <= 0,
     })),
-    stockBackend: usingRedis() ? "redis" : "memory",
+    stockBackend: usingDatabase() ? "neon" : "memory",
     seedStock: INITIAL_STOCK,
   });
 }

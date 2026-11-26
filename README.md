@@ -24,10 +24,11 @@ npm run build
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `UPSTASH_REDIS_REST_URL` | Recommended in production | Shared stock store across serverless instances |
-| `UPSTASH_REDIS_REST_TOKEN` | Recommended in production | Upstash Redis auth |
+| `DATABASE_URL` | Yes in production | Neon Postgres connection string (stock + bookings) |
 
-Without Redis, stock is kept in process memory. That is fine locally; on Vercel it will not reliably survive across instances or cold starts.
+On Vercel this is set automatically by the Neon integration (`festival-db`). Locally it is loaded from `.env.local` (not committed).
+
+Without a database URL, the app falls back to in-memory stock (local-only convenience).
 
 Do not commit secrets. Keep `.env*` out of git.
 
@@ -80,7 +81,7 @@ Do not commit secrets. Keep `.env*` out of git.
 9. **`EXPIRED5` / `MAXEDOUT`:** recognized codes with specific error messages, separate from unknown codes.
 10. **Checkout idempotency** via `idempotencyKey` so a double-click does not create two bookings.
 11. **All-Day Adult** starts sold out (stock `0`) — disabled in the UI and rejected by the API.
-12. **Stock:** Redis when configured; otherwise in-memory (limitation noted above).
+12. **Stock + bookings** live in Neon Postgres so a booking at 9am is still reflected at 9pm on Vercel. Concurrent checkouts use an optimistic version lock on the stock row.
 13. **Payment:** simulated for this exercise.
 
 Also see [DESIGN.md](./DESIGN.md) and [TEST-CASES.md](./TEST-CASES.md).
@@ -88,7 +89,6 @@ Also see [DESIGN.md](./DESIGN.md) and [TEST-CASES.md](./TEST-CASES.md).
 ## Known limitations
 
 - Payment is simulated (no Stripe).
-- Bookings are stored in memory; stock can use Redis.
 - No confirmation email.
 - Garba stock is one shared pool (not split per workshop day).
 
@@ -98,4 +98,4 @@ Also see [DESIGN.md](./DESIGN.md) and [TEST-CASES.md](./TEST-CASES.md).
 npx vercel@latest --prod
 ```
 
-Set the environment variables in the Vercel project settings if you use Redis.
+Neon env vars should already be connected on the Vercel project.
