@@ -2,6 +2,7 @@
 
 import { formatUsd } from "@/lib/format";
 import type { AttendeeInput, FestivalDay, TicketType } from "@/domain/types";
+import { stockLabel } from "./stockLabel";
 import type { Catalog } from "./types";
 
 type Props = {
@@ -77,8 +78,8 @@ export function StepTickets({
     onChangeAttendees(attendees.filter((_, i) => i !== index));
   };
 
-  const dandiyaLeft = catalog.extras.find((e) => e.id === "DANDIYA")?.remaining ?? 0;
-  const garbaLeft = catalog.extras.find((e) => e.id === "GARBA")?.remaining ?? 0;
+  const dandiya = catalog.extras.find((e) => e.id === "DANDIYA");
+  const garba = catalog.extras.find((e) => e.id === "GARBA");
 
   return (
     <section className="panel panel-tickets">
@@ -151,7 +152,7 @@ export function StepTickets({
                     <span>
                       {formatUsd(t.unitCents)}
                       {t.id.startsWith("DAY_") ? " / person / day" : " flat"}
-                      {t.soldOut ? " · Sold out" : ` · ${t.remaining} left`}
+                      {stockLabel(t.remaining, t.soldOut)}
                     </span>
                   </span>
                 </label>
@@ -193,7 +194,8 @@ export function StepTickets({
       <div className="card" style={{ marginTop: 16 }}>
         <h3>Extras</h3>
         <label className="label" htmlFor="dandiya">
-          Dandiya sticks (pairs) — {formatUsd(500)} each · {dandiyaLeft} left
+          Dandiya sticks (pairs) — {formatUsd(dandiya?.unitCents ?? 500)} each
+          {stockLabel(dandiya?.remaining ?? null, dandiya?.soldOut ?? false)}
         </label>
         <input
           id="dandiya"
@@ -206,7 +208,8 @@ export function StepTickets({
           onChange={(e) => onChangeDandiya(Math.max(0, Number(e.target.value) || 0))}
         />
         <p className="hint" style={{ color: "var(--text)", marginTop: 10 }}>
-          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only · {garbaLeft} seats left.
+          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only
+          {stockLabel(garba?.remaining ?? null, garba?.soldOut ?? false)}
         </p>
       </div>
 

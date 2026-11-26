@@ -1,6 +1,6 @@
 /**
  * Records a walkthrough of the live booking site for submission.
- * Output: demo-recording/demo.webm
+ * Output: demo-recording/sharad-utsav-demo.webm
  */
 import { chromium } from "playwright";
 import fs from "fs";
@@ -24,19 +24,20 @@ async function scrollInto(sel) {
   if (await el.count()) await el.scrollIntoViewIfNeeded();
 }
 
-async function waitForCatalogReady() {
-  await page.getByRole("button", { name: "Continue", exact: true }).waitFor({ state: "visible", timeout: 90000 });
+async function waitForLiveStock() {
+  // Hardcoded UI is immediate; wait until remaining counts replace "…"
+  await page.getByRole("button", { name: "Continue", exact: true }).waitFor({ state: "visible", timeout: 30000 });
   await page.waitForFunction(() => {
-    const btn = [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Continue");
-    return btn && !btn.disabled;
+    const text = document.body?.innerText || "";
+    return text.includes("left") || text.includes("Sold out");
   }, null, { timeout: 90000 });
 }
 
 console.log("Opening", BASE);
 await page.goto(BASE, { waitUntil: "domcontentloaded" });
-await pause(1200);
-console.log("Waiting for catalog (skeleton → live stock)");
-await waitForCatalogReady();
+await pause(1000);
+console.log("Hardcoded UI visible; waiting for live stock counts");
+await waitForLiveStock();
 await pause(1000);
 
 console.log("1) Happy path: adult + child tickets");
@@ -83,7 +84,7 @@ await pause(2000);
 
 console.log("2) Sold-out All-Day Adult");
 await page.goto(BASE, { waitUntil: "domcontentloaded" });
-await waitForCatalogReady();
+await waitForLiveStock();
 await pause(800);
 await scrollInto("text=All-Day Pass");
 await pause(2000);

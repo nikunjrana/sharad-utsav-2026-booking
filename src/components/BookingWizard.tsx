@@ -1,10 +1,9 @@
 "use client";
 
-import { EVENT } from "@/domain/catalog";
 import { formatUsd } from "@/lib/format";
 import type { AttendeeInput, BookingRecord, QuoteResult } from "@/domain/types";
 import { useCallback, useEffect, useState } from "react";
-import { CatalogSkeleton } from "./CatalogSkeleton";
+import { applyLiveStock, staticCatalog } from "./staticCatalog";
 import { StepDone } from "./StepDone";
 import { StepPeople } from "./StepPeople";
 import { StepReview } from "./StepReview";
@@ -20,8 +19,8 @@ function makeKey() {
 }
 
 export function BookingWizard() {
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<Catalog>(() => staticCatalog());
+  const [stockError, setStockError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("tickets");
   const [attendees, setAttendees] = useState<AttendeeInput[]>([blankBooker()]);
   const [contact, setContact] = useState({ name: "", email: "", phone: "" });
@@ -41,17 +40,17 @@ export function BookingWizard() {
     let cancelled = false;
     fetch("/api/catalog")
       .then((r) => {
-        if (!r.ok) throw new Error("Could not load catalog");
+        if (!r.ok) throw new Error("Could not load live stock");
         return r.json();
       })
       .then((data: Catalog) => {
         if (cancelled) return;
-        setCatalog(data);
-        setCatalogError(null);
+        setCatalog((prev) => applyLiveStock(prev, data));
+        setStockError(null);
       })
       .catch((e: Error) => {
         if (cancelled) return;
-        setCatalogError(e.message);
+        setStockError(e.message);
       });
     return () => {
       cancelled = true;
@@ -105,12 +104,11 @@ export function BookingWizard() {
     [cartBody]
   );
 
-  // Quiet live quote once catalog is ready — no error flicker on first steps
   useEffect(() => {
-    if (step === "done" || !catalog) return;
+    if (step === "done") return;
     const t = setTimeout(() => void refreshQuote({ showErrors: false }), 350);
     return () => clearTimeout(t);
-  }, [step, catalog, refreshQuote]);
+  }, [step, refreshQuote]);
 
   const applyPromo = async () => {
     setPromoMessage(null);
@@ -142,7 +140,7 @@ export function BookingWizard() {
       setQuote(data.quote);
       setStep("done");
       const fresh = (await fetch("/api/catalog").then((r) => r.json())) as Catalog;
-      setCatalog(fresh);
+      setCatalog((prev) => applyLiveStock(prev, fresh));
     } catch {
       setErrors(["Network lost during payment. Retry is safe (same idempotency key)."]);
     } finally {
@@ -159,34 +157,27 @@ export function BookingWizard() {
   const stepOrder: Step[] = ["tickets", "people", "review"];
   const showStepErrors = step === "review" && errors.length > 0;
 
-  const totalLabel = !catalog
-    ? "…"
-    : quoting
-      ? "…"
-      : quote?.ok
-        ? formatUsd(quote.totalCents)
-        : "—";
+  const totalLabel = quoting ? "…" : quote?.ok ? formatUsd(quote.totalCents) : "—";
 
   return (
     <div>
       <header>
-        <p className="eyebrow">Radha Krishna Temple · Allen, TX</p>
-        <h1 className="title">{EVENT.name}</h1>
+        <p className="eyebrow">{catalog.event.location}</p>
+        <h1 className="title">{catalog.event.name}</h1>
         <p className="subtitle">
           Book tickets for Tue 10 Nov – Sat 14 Nov 2026. Prices are confirmed by the server at
           checkout.
         </p>
       </header>
 
-      {/* Fixed-height status so load text does not jump the page */}
       <div className="status-strip" aria-live="polite">
-        {!catalog && !catalogError ? (
+        {!catalog.stockReady && !stockError ? (
           <span className="hint" style={{ margin: 0 }}>
             Loading live stock…
           </span>
-        ) : catalogError ? (
+        ) : stockError ? (
           <span className="hint" style={{ margin: 0, color: "var(--error)" }}>
-            {catalogError} — refresh to retry.
+            {stockError} — you can still book; stock is checked on the server.
           </span>
         ) : (
           <span className="hint status-strip-ready" style={{ margin: 0 }}>
@@ -216,22 +207,19 @@ export function BookingWizard() {
         </div>
       )}
 
-      {step === "tickets" &&
-        (catalog ? (
-          <StepTickets
-            catalog={catalog}
-            attendees={attendees}
-            dandiyaQty={dandiyaQty}
-            onChangeAttendees={setAttendees}
-            onChangeDandiya={setDandiyaQty}
-            onSyncBookerName={syncBookerName}
-            onNext={() => setStep("people")}
-          />
-        ) : (
-          <CatalogSkeleton />
-        ))}
+      {step === "tickets" && (
+        <StepTickets
+          catalog={catalog}
+          attendees={attendees}
+          dandiyaQty={dandiyaQty}
+          onChangeAttendees={setAttendees}
+          onChangeDandiya={setDandiyaQty}
+          onSyncBookerName={syncBookerName}
+          onNext={() => setStep("people")}
+        />
+      )}
 
-      {step === "people" && catalog && (
+      {step === "people" && (
         <StepPeople
           catalog={catalog}
           attendees={attendees}

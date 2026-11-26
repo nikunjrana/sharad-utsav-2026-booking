@@ -27,6 +27,7 @@ export async function GET() {
       soldOut: stock[id] <= 0,
     })),
     stockBackend: usingDatabase() ? "neon" : "memory",
+    stockReady: true,
     seedStock: INITIAL_STOCK,
   });
 }

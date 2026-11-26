@@ -6,7 +6,16 @@ export interface CatalogTicket {
   id: TicketType;
   label: string;
   unitCents: number;
-  remaining: number;
+  /** null while live stock is still loading */
+  remaining: number | null;
+  soldOut: boolean;
+}
+
+export interface CatalogExtra {
+  id: string;
+  label: string;
+  unitCents: number;
+  remaining: number | null;
   soldOut: boolean;
 }
 
@@ -15,8 +24,9 @@ export interface Catalog {
   days: { id: FestivalDay; label: string }[];
   garbaDays: FestivalDay[];
   tickets: CatalogTicket[];
-  extras: { id: string; label: string; unitCents: number; remaining: number; soldOut: boolean }[];
+  extras: CatalogExtra[];
   stockBackend: string;
+  stockReady: boolean;
 }
 
 export type DayPick = { attendeeIndex: number; day: FestivalDay };
