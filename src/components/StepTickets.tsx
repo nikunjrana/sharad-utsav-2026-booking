@@ -6,6 +6,7 @@ import type { Catalog } from "./types";
 
 type Props = {
   catalog: Catalog;
+  catalogReady: boolean;
   attendees: AttendeeInput[];
   dandiyaQty: number;
   onChangeAttendees: (next: AttendeeInput[]) => void;
@@ -27,6 +28,7 @@ function ticketsForAge(age: number, tickets: Catalog["tickets"]) {
 
 export function StepTickets({
   catalog,
+  catalogReady,
   attendees,
   dandiyaQty,
   onChangeAttendees,
@@ -151,7 +153,11 @@ export function StepTickets({
                     <span>
                       {formatUsd(t.unitCents)}
                       {t.id.startsWith("DAY_") ? " / person / day" : " flat"}
-                      {t.soldOut ? " · Sold out" : ` · ${t.remaining} left`}
+                      {t.soldOut
+                        ? " · Sold out"
+                        : catalogReady
+                          ? ` · ${t.remaining} left`
+                          : " · checking stock…"}
                     </span>
                   </span>
                 </label>
@@ -193,7 +199,8 @@ export function StepTickets({
       <div className="card" style={{ marginTop: 16 }}>
         <h3>Extras</h3>
         <label className="label" htmlFor="dandiya">
-          Dandiya sticks (pairs) — {formatUsd(500)} each · {dandiyaLeft} left
+          Dandiya sticks (pairs) — {formatUsd(500)} each ·{" "}
+          {catalogReady ? `${dandiyaLeft} left` : "checking stock…"}
         </label>
         <input
           id="dandiya"
@@ -206,13 +213,19 @@ export function StepTickets({
           onChange={(e) => onChangeDandiya(Math.max(0, Number(e.target.value) || 0))}
         />
         <p className="hint" style={{ color: "var(--text)", marginTop: 10 }}>
-          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only · {garbaLeft} seats left.
+          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only ·{" "}
+          {catalogReady ? `${garbaLeft} seats left` : "checking stock…"}
         </p>
       </div>
 
       <div className="actions" style={{ justifyContent: "flex-end" }}>
-        <button type="button" className="btn btn-primary" onClick={onNext}>
-          Continue
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!catalogReady}
+          onClick={onNext}
+        >
+          {catalogReady ? "Continue" : "Loading stock…"}
         </button>
       </div>
     </section>

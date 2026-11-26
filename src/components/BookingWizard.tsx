@@ -3,6 +3,7 @@
 import { formatUsd } from "@/lib/format";
 import type { AttendeeInput, BookingRecord, QuoteResult } from "@/domain/types";
 import { useCallback, useEffect, useState } from "react";
+import { fallbackCatalog } from "./fallbackCatalog";
 import { StepDone } from "./StepDone";
 import { StepPeople } from "./StepPeople";
 import { StepReview } from "./StepReview";
@@ -18,7 +19,9 @@ function makeKey() {
 }
 
 export function BookingWizard() {
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [catalog, setCatalog] = useState<Catalog>(() => fallbackCatalog());
+  const [catalogReady, setCatalogReady] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("tickets");
   const [attendees, setAttendees] = useState<AttendeeInput[]>([blankBooker()]);
@@ -35,15 +38,31 @@ export function BookingWizard() {
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [idempotencyKey] = useState(makeKey);
 
-  // Load catalog once
+  // Show UI immediately; refresh live stock from the server in the background.
   useEffect(() => {
+    let cancelled = false;
+    setCatalogLoading(true);
     fetch("/api/catalog")
       .then((r) => {
         if (!r.ok) throw new Error("Could not load catalog");
         return r.json();
       })
-      .then(setCatalog)
-      .catch((e: Error) => setError(e.message));
+      .then((data: Catalog) => {
+        if (cancelled) return;
+        setCatalog(data);
+        setCatalogReady(true);
+        setError(null);
+      })
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const syncBookerName = (name: string) => {
@@ -90,7 +109,6 @@ export function BookingWizard() {
     }
   }, [cartBody]);
 
-  // Live quote while editing
   useEffect(() => {
     if (step === "done") return;
     const t = setTimeout(() => void refreshQuote(), 300);
@@ -126,16 +144,15 @@ export function BookingWizard() {
       setBooking(data.booking);
       setQuote(data.quote);
       setStep("done");
-      setCatalog(await fetch("/api/catalog").then((r) => r.json()));
+      const fresh = await fetch("/api/catalog").then((r) => r.json());
+      setCatalog(fresh);
+      setCatalogReady(true);
     } catch {
       setErrors(["Network lost during payment. Retry is safe (same idempotency key)."]);
     } finally {
       setPaying(false);
     }
   };
-
-  if (error) return <div className="alert">{error}</div>;
-  if (!catalog) return <p className="hint">Loading festival catalog…</p>;
 
   const stepOrder: Step[] = ["tickets", "people", "review"];
 
@@ -148,6 +165,18 @@ export function BookingWizard() {
           Book tickets for Tue 10 Nov – Sat 14 Nov 2026. Prices are confirmed by the server at checkout.
         </p>
       </header>
+
+      {catalogLoading && (
+        <p className="hint" style={{ marginTop: -8 }}>
+          Loading live stock…
+        </p>
+      )}
+
+      {error && (
+        <div className="alert" role="alert">
+          {error} — you can still browse; retry by refreshing the page.
+        </div>
+      )}
 
       {step !== "done" && (
         <div className="steps">
@@ -173,6 +202,7 @@ export function BookingWizard() {
       {step === "tickets" && (
         <StepTickets
           catalog={catalog}
+          catalogReady={catalogReady}
           attendees={attendees}
           dandiyaQty={dandiyaQty}
           onChangeAttendees={setAttendees}

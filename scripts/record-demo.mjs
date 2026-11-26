@@ -25,8 +25,17 @@ async function scrollInto(sel) {
 }
 
 console.log("Opening", BASE);
-await page.goto(BASE, { waitUntil: "networkidle" });
-await pause(2000);
+await page.goto(BASE, { waitUntil: "domcontentloaded" });
+await pause(1500);
+// UI should appear immediately; wait until live stock unlocks Continue
+await page.getByRole("button", { name: "Continue", exact: true }).waitFor({ state: "visible", timeout: 90000 });
+await page.getByRole("button", { name: "Continue", exact: true }).waitFor({ state: "attached", timeout: 90000 });
+// Ensure button is enabled (catalog ready)
+await page.waitForFunction(() => {
+  const btn = [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Continue");
+  return btn && !btn.disabled;
+}, null, { timeout: 90000 });
+await pause(1000);
 
 // --- Happy path ---
 console.log("1) Happy path: adult + child tickets");
