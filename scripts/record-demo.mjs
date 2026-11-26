@@ -24,11 +24,21 @@ async function scrollInto(sel) {
   if (await el.count()) await el.scrollIntoViewIfNeeded();
 }
 
-console.log("Opening", BASE);
-await page.goto(BASE, { waitUntil: "networkidle" });
-await pause(2000);
+async function waitForCatalogReady() {
+  await page.getByRole("button", { name: "Continue", exact: true }).waitFor({ state: "visible", timeout: 90000 });
+  await page.waitForFunction(() => {
+    const btn = [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Continue");
+    return btn && !btn.disabled;
+  }, null, { timeout: 90000 });
+}
 
-// --- Happy path ---
+console.log("Opening", BASE);
+await page.goto(BASE, { waitUntil: "domcontentloaded" });
+await pause(1200);
+console.log("Waiting for catalog (skeleton → live stock)");
+await waitForCatalogReady();
+await pause(1000);
+
 console.log("1) Happy path: adult + child tickets");
 await page.getByRole("button", { name: "+ Add another person" }).click();
 await pause(600);
@@ -42,7 +52,6 @@ await names.nth(1).fill("Aarav Sharma");
 await ages.nth(1).fill("8");
 await pause(800);
 
-// Pick a couple days for booker if day chips exist
 const dayButtons = page.locator("button.chip");
 if ((await dayButtons.count()) >= 2) {
   await dayButtons.nth(0).click();
@@ -68,19 +77,18 @@ await pause(1500);
 await page.getByRole("button", { name: /Pay/ }).click();
 await pause(2500);
 
-// Confirmation visible?
 const confirmed = await page.getByText("Confirmed").count();
 console.log("Confirmation shown:", confirmed > 0);
 await pause(2000);
 
-// Reload for failure demos
 console.log("2) Sold-out All-Day Adult");
-await page.goto(BASE, { waitUntil: "networkidle" });
-await pause(1500);
+await page.goto(BASE, { waitUntil: "domcontentloaded" });
+await waitForCatalogReady();
+await pause(800);
 await scrollInto("text=All-Day Pass");
 await pause(2000);
 
-console.log("3) Age mismatch: child on adult path prevented in UI");
+console.log("3) Age mismatch: child age switches ticket options");
 await page.getByRole("button", { name: "+ Add another person" }).click();
 await pause(400);
 await names.nth(0).fill("Priya Sharma");
@@ -103,7 +111,7 @@ for (const code of ["EXPIRED5", "MAXEDOUT", "NOTREAL"]) {
   await pause(1400);
 }
 
-console.log("5) Garba wrong day rejected via quote errors if forced — show Nov 11/13 note");
+console.log("5) Garba day note");
 await page.getByRole("button", { name: "Back" }).click();
 await pause(800);
 await scrollInto("text=Garba");
@@ -122,4 +130,3 @@ const src = path.join(outDir, videos[0]);
 const dest = path.join(outDir, "sharad-utsav-demo.webm");
 fs.renameSync(src, dest);
 console.log("Saved:", dest);
-console.log("Duration roughly covers happy path + sold-out + age + promos");

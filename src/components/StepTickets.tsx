@@ -81,7 +81,7 @@ export function StepTickets({
   const garbaLeft = catalog.extras.find((e) => e.id === "GARBA")?.remaining ?? 0;
 
   return (
-    <section className="panel">
+    <section className="panel panel-tickets">
       <h2 className="section-title">Who is coming?</h2>
       <p className="hint">
         Under 5 = free (no ticket). Ages 5–11 = child. Ages 12+ = adult. Booker (first person) must be 18+.

@@ -1,8 +1,10 @@
 "use client";
 
+import { EVENT } from "@/domain/catalog";
 import { formatUsd } from "@/lib/format";
 import type { AttendeeInput, BookingRecord, QuoteResult } from "@/domain/types";
 import { useCallback, useEffect, useState } from "react";
+import { CatalogSkeleton } from "./CatalogSkeleton";
 import { StepDone } from "./StepDone";
 import { StepPeople } from "./StepPeople";
 import { StepReview } from "./StepReview";
@@ -19,7 +21,7 @@ function makeKey() {
 
 export function BookingWizard() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("tickets");
   const [attendees, setAttendees] = useState<AttendeeInput[]>([blankBooker()]);
   const [contact, setContact] = useState({ name: "", email: "", phone: "" });
@@ -35,15 +37,25 @@ export function BookingWizard() {
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [idempotencyKey] = useState(makeKey);
 
-  // Load catalog once
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/catalog")
       .then((r) => {
         if (!r.ok) throw new Error("Could not load catalog");
         return r.json();
       })
-      .then(setCatalog)
-      .catch((e: Error) => setError(e.message));
+      .then((data: Catalog) => {
+        if (cancelled) return;
+        setCatalog(data);
+        setCatalogError(null);
+      })
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setCatalogError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const syncBookerName = (name: string) => {
@@ -71,31 +83,34 @@ export function BookingWizard() {
     [attendees, contact, dandiyaQty, dinners, garba, promoCode, idempotencyKey]
   );
 
-  const refreshQuote = useCallback(async () => {
-    setQuoting(true);
-    setErrors([]);
-    try {
-      const res = await fetch("/api/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cartBody(true)),
-      });
-      const data = (await res.json()) as QuoteResult;
-      setQuote(data);
-      if (!data.ok) setErrors(data.errors);
-    } catch {
-      setErrors(["Network error while pricing."]);
-    } finally {
-      setQuoting(false);
-    }
-  }, [cartBody]);
+  const refreshQuote = useCallback(
+    async (opts?: { showErrors?: boolean }) => {
+      const showErrors = opts?.showErrors ?? false;
+      setQuoting(true);
+      try {
+        const res = await fetch("/api/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cartBody(true)),
+        });
+        const data = (await res.json()) as QuoteResult;
+        setQuote(data);
+        if (showErrors) setErrors(data.ok ? [] : data.errors);
+      } catch {
+        if (showErrors) setErrors(["Network error while pricing."]);
+      } finally {
+        setQuoting(false);
+      }
+    },
+    [cartBody]
+  );
 
-  // Live quote while editing
+  // Quiet live quote once catalog is ready — no error flicker on first steps
   useEffect(() => {
-    if (step === "done") return;
-    const t = setTimeout(() => void refreshQuote(), 300);
+    if (step === "done" || !catalog) return;
+    const t = setTimeout(() => void refreshQuote({ showErrors: false }), 350);
     return () => clearTimeout(t);
-  }, [step, refreshQuote]);
+  }, [step, catalog, refreshQuote]);
 
   const applyPromo = async () => {
     setPromoMessage(null);
@@ -106,7 +121,7 @@ export function BookingWizard() {
     });
     const data = await res.json();
     setPromoMessage(data.ok ? data.message : data.error);
-    await refreshQuote();
+    await refreshQuote({ showErrors: true });
   };
 
   const pay = async () => {
@@ -126,7 +141,8 @@ export function BookingWizard() {
       setBooking(data.booking);
       setQuote(data.quote);
       setStep("done");
-      setCatalog(await fetch("/api/catalog").then((r) => r.json()));
+      const fresh = (await fetch("/api/catalog").then((r) => r.json())) as Catalog;
+      setCatalog(fresh);
     } catch {
       setErrors(["Network lost during payment. Retry is safe (same idempotency key)."]);
     } finally {
@@ -134,20 +150,50 @@ export function BookingWizard() {
     }
   };
 
-  if (error) return <div className="alert">{error}</div>;
-  if (!catalog) return <p className="hint">Loading festival catalog…</p>;
+  const goReview = () => {
+    setErrors([]);
+    setStep("review");
+    void refreshQuote({ showErrors: true });
+  };
 
   const stepOrder: Step[] = ["tickets", "people", "review"];
+  const showStepErrors = step === "review" && errors.length > 0;
+
+  const totalLabel = !catalog
+    ? "…"
+    : quoting
+      ? "…"
+      : quote?.ok
+        ? formatUsd(quote.totalCents)
+        : "—";
 
   return (
     <div>
       <header>
         <p className="eyebrow">Radha Krishna Temple · Allen, TX</p>
-        <h1 className="title">{catalog.event.name}</h1>
+        <h1 className="title">{EVENT.name}</h1>
         <p className="subtitle">
-          Book tickets for Tue 10 Nov – Sat 14 Nov 2026. Prices are confirmed by the server at checkout.
+          Book tickets for Tue 10 Nov – Sat 14 Nov 2026. Prices are confirmed by the server at
+          checkout.
         </p>
       </header>
+
+      {/* Fixed-height status so load text does not jump the page */}
+      <div className="status-strip" aria-live="polite">
+        {!catalog && !catalogError ? (
+          <span className="hint" style={{ margin: 0 }}>
+            Loading live stock…
+          </span>
+        ) : catalogError ? (
+          <span className="hint" style={{ margin: 0, color: "var(--error)" }}>
+            {catalogError} — refresh to retry.
+          </span>
+        ) : (
+          <span className="hint status-strip-ready" style={{ margin: 0 }}>
+            Live stock ready
+          </span>
+        )}
+      </div>
 
       {step !== "done" && (
         <div className="steps">
@@ -162,7 +208,7 @@ export function BookingWizard() {
         </div>
       )}
 
-      {errors.length > 0 && step !== "done" && (
+      {showStepErrors && (
         <div className="alert" role="alert">
           {errors.map((e) => (
             <div key={e}>{e}</div>
@@ -170,19 +216,22 @@ export function BookingWizard() {
         </div>
       )}
 
-      {step === "tickets" && (
-        <StepTickets
-          catalog={catalog}
-          attendees={attendees}
-          dandiyaQty={dandiyaQty}
-          onChangeAttendees={setAttendees}
-          onChangeDandiya={setDandiyaQty}
-          onSyncBookerName={syncBookerName}
-          onNext={() => setStep("people")}
-        />
-      )}
+      {step === "tickets" &&
+        (catalog ? (
+          <StepTickets
+            catalog={catalog}
+            attendees={attendees}
+            dandiyaQty={dandiyaQty}
+            onChangeAttendees={setAttendees}
+            onChangeDandiya={setDandiyaQty}
+            onSyncBookerName={syncBookerName}
+            onNext={() => setStep("people")}
+          />
+        ) : (
+          <CatalogSkeleton />
+        ))}
 
-      {step === "people" && (
+      {step === "people" && catalog && (
         <StepPeople
           catalog={catalog}
           attendees={attendees}
@@ -194,7 +243,7 @@ export function BookingWizard() {
           onDinners={setDinners}
           onGarba={setGarba}
           onBack={() => setStep("tickets")}
-          onNext={() => setStep("review")}
+          onNext={goReview}
         />
       )}
 
@@ -214,9 +263,9 @@ export function BookingWizard() {
 
       {step === "done" && booking && <StepDone booking={booking} />}
 
-      {step !== "done" && quote?.ok && (
-        <div className="sticky-total">
-          Estimated total · <strong>{quoting ? "…" : formatUsd(quote.totalCents)}</strong>
+      {step !== "done" && (
+        <div className="sticky-total" aria-live="polite">
+          Estimated total · <strong>{totalLabel}</strong>
         </div>
       )}
     </div>

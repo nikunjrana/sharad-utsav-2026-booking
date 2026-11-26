@@ -6,11 +6,13 @@ const serif = Libre_Baskerville({
   weight: ["400", "700"],
   subsets: ["latin"],
   variable: "--font-serif",
+  display: "swap",
 });
 
 const sans = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
