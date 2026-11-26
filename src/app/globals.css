@@ -81,16 +81,6 @@ body {
   margin: 0 0 16px;
 }
 
-/* Keeps first-fold height stable while stock loads */
-.status-strip {
-  min-height: 1.4em;
-  margin: -8px 0 16px;
-}
-
-.status-strip-ready {
-  opacity: 0;
-}
-
 /* Panels */
 .panel {
   border: 1px solid rgba(255, 255, 255, 0.2);

@@ -6,7 +6,6 @@ import type { Catalog } from "./types";
 
 type Props = {
   catalog: Catalog;
-  catalogReady: boolean;
   attendees: AttendeeInput[];
   dandiyaQty: number;
   onChangeAttendees: (next: AttendeeInput[]) => void;
@@ -28,7 +27,6 @@ function ticketsForAge(age: number, tickets: Catalog["tickets"]) {
 
 export function StepTickets({
   catalog,
-  catalogReady,
   attendees,
   dandiyaQty,
   onChangeAttendees,
@@ -208,18 +206,12 @@ export function StepTickets({
           onChange={(e) => onChangeDandiya(Math.max(0, Number(e.target.value) || 0))}
         />
         <p className="hint" style={{ color: "var(--text)", marginTop: 10 }}>
-          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only · {garbaLeft} seats
-          left.
+          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only · {garbaLeft} seats left.
         </p>
       </div>
 
       <div className="actions" style={{ justifyContent: "flex-end" }}>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!catalogReady}
-          onClick={onNext}
-        >
+        <button type="button" className="btn btn-primary" onClick={onNext}>
           Continue
         </button>
       </div>
