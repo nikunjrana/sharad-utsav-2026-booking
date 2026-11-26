@@ -2,20 +2,349 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Brand colours */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #2c2c2c;
+  --gold: #c99b24;
+  --gold-dark: #bc9226;
+  --gold-hover: #d1ac3e;
+  --cream: #fdf3e4;
+  --heading: #291900;
+  --text: #645743;
+  --white: #ffffff;
+  --success: #28a736;
+  --error: #ef1f1f;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  min-height: 100%;
+  margin: 0;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--white);
+  background: var(--bg);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Layout */
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 16px 80px;
+}
+
+.page-footer {
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Typography */
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-dark);
+  margin: 0 0 8px;
+}
+
+.title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 42px;
+  line-height: 1.15;
+  color: var(--cream);
+  margin: 0 0 12px;
+}
+
+.subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 24px;
+  max-width: 560px;
+}
+
+.section-title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 24px;
+  color: var(--cream);
+  margin: 0 0 8px;
+}
+
+.hint {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 16px;
+}
+
+/* Panels */
+.panel {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--cream);
+  color: var(--text);
+  border: 1px solid rgba(188, 146, 38, 0.35);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card h3 {
+  font-family: var(--font-serif), Georgia, serif;
+  color: var(--heading);
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+/* Forms */
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--heading);
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(188, 146, 38, 0.45);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--heading);
+  background: var(--white);
+}
+
+.input:focus {
+  outline: 2px solid var(--gold);
+  border-color: var(--gold);
+}
+
+.row {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (min-width: 640px) {
+  .row-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary = gold fill */
+.btn-primary {
+  background: var(--gold);
+  color: var(--heading);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--gold-hover);
+}
+
+/* Ghost = outline on dark */
+.btn-ghost {
+  background: transparent;
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--gold);
+  color: var(--gold-hover);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--error);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Chips / options */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(188, 146, 38, 0.4);
+  background: var(--white);
+  color: var(--heading);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chip-on {
+  border-color: var(--gold);
+  background: rgba(201, 155, 36, 0.25);
+}
+
+.chip-off {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid rgba(188, 146, 38, 0.35);
+  background: var(--white);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.option-on {
+  border-color: var(--gold);
+  background: rgba(201, 155, 36, 0.18);
+}
+
+.option-sold {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.option strong {
+  display: block;
+  color: var(--heading);
+}
+
+.option span {
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Steps */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.step-pill {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.step-pill-on {
+  background: var(--gold);
+  color: var(--heading);
+}
+
+/* Alerts / totals */
+.alert {
+  border: 1px solid rgba(239, 31, 31, 0.5);
+  background: rgba(239, 31, 31, 0.12);
+  color: var(--cream);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.ok-text {
+  color: var(--success);
+  font-size: 14px;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--heading);
+  margin-bottom: 6px;
+}
+
+.price-total {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 22px;
+  color: var(--heading);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(188, 146, 38, 0.3);
+}
+
+.sticky-total {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  max-width: 360px;
+  margin: 24px auto 0;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(188, 146, 38, 0.45);
+  background: rgba(44, 44, 44, 0.95);
+}
+
+.sticky-total strong {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 22px;
+  color: var(--gold-hover);
+}
+
+.confirm-id {
+  font-family: ui-monospace, monospace;
+  color: var(--gold-hover);
 }

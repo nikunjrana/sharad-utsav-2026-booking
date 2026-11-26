@@ -9,8 +9,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        primaryDark: "#2C2C2C",
+        primary: "#C99B24",
+        gold: "#BC9226",
+        brightGold: "#D1AC3E",
+        cream: "#FDF3E4",
+        heading: "#291900",
+        primaryText: "#645743",
+        success: "#28A736",
+        error: "#EF1F1F",
+      },
+      fontFamily: {
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        panel: "0 12px 40px rgba(0,0,0,0.35)",
       },
     },
   },
