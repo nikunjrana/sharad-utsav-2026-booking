@@ -153,11 +153,7 @@ export function StepTickets({
                     <span>
                       {formatUsd(t.unitCents)}
                       {t.id.startsWith("DAY_") ? " / person / day" : " flat"}
-                      {t.soldOut
-                        ? " · Sold out"
-                        : catalogReady
-                          ? ` · ${t.remaining} left`
-                          : " · checking stock…"}
+                      {t.soldOut ? " · Sold out" : ` · ${t.remaining} left`}
                     </span>
                   </span>
                 </label>
@@ -199,8 +195,7 @@ export function StepTickets({
       <div className="card" style={{ marginTop: 16 }}>
         <h3>Extras</h3>
         <label className="label" htmlFor="dandiya">
-          Dandiya sticks (pairs) — {formatUsd(500)} each ·{" "}
-          {catalogReady ? `${dandiyaLeft} left` : "checking stock…"}
+          Dandiya sticks (pairs) — {formatUsd(500)} each · {dandiyaLeft} left
         </label>
         <input
           id="dandiya"
@@ -213,8 +208,8 @@ export function StepTickets({
           onChange={(e) => onChangeDandiya(Math.max(0, Number(e.target.value) || 0))}
         />
         <p className="hint" style={{ color: "var(--text)", marginTop: 10 }}>
-          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only ·{" "}
-          {catalogReady ? `${garbaLeft} seats left` : "checking stock…"}
+          Dinner & Garba are chosen on the next step. Garba: Nov 11 & 13 only · {garbaLeft} seats
+          left.
         </p>
       </div>
 
@@ -225,7 +220,7 @@ export function StepTickets({
           disabled={!catalogReady}
           onClick={onNext}
         >
-          {catalogReady ? "Continue" : "Loading stock…"}
+          Continue
         </button>
       </div>
     </section>

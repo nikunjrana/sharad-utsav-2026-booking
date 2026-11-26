@@ -18,6 +18,29 @@ function makeKey() {
   return crypto.randomUUID?.() ?? `idem-${Date.now()}`;
 }
 
+/** Patch only stock fields so ticket option layout stays stable. */
+function mergeLiveStock(prev: Catalog, live: Catalog): Catalog {
+  const ticketStock = new Map(live.tickets.map((t) => [t.id, t]));
+  const extraStock = new Map(live.extras.map((e) => [e.id, e]));
+  return {
+    ...prev,
+    event: live.event,
+    days: live.days,
+    garbaDays: live.garbaDays,
+    stockBackend: live.stockBackend,
+    tickets: prev.tickets.map((t) => {
+      const next = ticketStock.get(t.id);
+      if (!next) return t;
+      return { ...t, remaining: next.remaining, soldOut: next.soldOut, unitCents: next.unitCents, label: next.label };
+    }),
+    extras: prev.extras.map((e) => {
+      const next = extraStock.get(e.id);
+      if (!next) return e;
+      return { ...e, remaining: next.remaining, soldOut: next.soldOut, unitCents: next.unitCents, label: next.label };
+    }),
+  };
+}
+
 export function BookingWizard() {
   const [catalog, setCatalog] = useState<Catalog>(() => fallbackCatalog());
   const [catalogReady, setCatalogReady] = useState(false);
@@ -38,7 +61,6 @@ export function BookingWizard() {
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [idempotencyKey] = useState(makeKey);
 
-  // Show UI immediately; refresh live stock from the server in the background.
   useEffect(() => {
     let cancelled = false;
     setCatalogLoading(true);
@@ -49,7 +71,7 @@ export function BookingWizard() {
       })
       .then((data: Catalog) => {
         if (cancelled) return;
-        setCatalog(data);
+        setCatalog((prev) => mergeLiveStock(prev, data));
         setCatalogReady(true);
         setError(null);
       })
@@ -90,30 +112,36 @@ export function BookingWizard() {
     [attendees, contact, dandiyaQty, dinners, garba, promoCode, idempotencyKey]
   );
 
-  const refreshQuote = useCallback(async () => {
-    setQuoting(true);
-    setErrors([]);
-    try {
-      const res = await fetch("/api/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cartBody(true)),
-      });
-      const data = (await res.json()) as QuoteResult;
-      setQuote(data);
-      if (!data.ok) setErrors(data.errors);
-    } catch {
-      setErrors(["Network error while pricing."]);
-    } finally {
-      setQuoting(false);
-    }
-  }, [cartBody]);
+  const refreshQuote = useCallback(
+    async (opts?: { surfaceErrors?: boolean }) => {
+      const surfaceErrors = opts?.surfaceErrors ?? false;
+      setQuoting(true);
+      try {
+        const res = await fetch("/api/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cartBody(true)),
+        });
+        const data = (await res.json()) as QuoteResult;
+        setQuote(data);
+        if (surfaceErrors) {
+          setErrors(data.ok ? [] : data.errors);
+        }
+      } catch {
+        if (surfaceErrors) setErrors(["Network error while pricing."]);
+      } finally {
+        setQuoting(false);
+      }
+    },
+    [cartBody]
+  );
 
+  // Quiet background quote for the sticky total — no error banners on first fold.
   useEffect(() => {
-    if (step === "done") return;
-    const t = setTimeout(() => void refreshQuote(), 300);
+    if (step === "done" || !catalogReady) return;
+    const t = setTimeout(() => void refreshQuote({ surfaceErrors: false }), 400);
     return () => clearTimeout(t);
-  }, [step, refreshQuote]);
+  }, [step, catalogReady, refreshQuote]);
 
   const applyPromo = async () => {
     setPromoMessage(null);
@@ -124,7 +152,7 @@ export function BookingWizard() {
     });
     const data = await res.json();
     setPromoMessage(data.ok ? data.message : data.error);
-    await refreshQuote();
+    await refreshQuote({ surfaceErrors: true });
   };
 
   const pay = async () => {
@@ -144,8 +172,8 @@ export function BookingWizard() {
       setBooking(data.booking);
       setQuote(data.quote);
       setStep("done");
-      const fresh = await fetch("/api/catalog").then((r) => r.json());
-      setCatalog(fresh);
+      const fresh = (await fetch("/api/catalog").then((r) => r.json())) as Catalog;
+      setCatalog((prev) => mergeLiveStock(prev, fresh));
       setCatalogReady(true);
     } catch {
       setErrors(["Network lost during payment. Retry is safe (same idempotency key)."]);
@@ -154,7 +182,14 @@ export function BookingWizard() {
     }
   };
 
+  const goReview = () => {
+    setErrors([]);
+    setStep("review");
+    void refreshQuote({ surfaceErrors: true });
+  };
+
   const stepOrder: Step[] = ["tickets", "people", "review"];
+  const showErrors = step === "review" || step === "done" ? errors.length > 0 : false;
 
   return (
     <div>
@@ -166,17 +201,22 @@ export function BookingWizard() {
         </p>
       </header>
 
-      {catalogLoading && (
-        <p className="hint" style={{ marginTop: -8 }}>
-          Loading live stock…
-        </p>
-      )}
-
-      {error && (
-        <div className="alert" role="alert">
-          {error} — you can still browse; retry by refreshing the page.
-        </div>
-      )}
+      {/* Fixed-height strip so loading text cannot jump the first fold */}
+      <div className="status-strip" aria-live="polite">
+        {catalogLoading ? (
+          <span className="hint" style={{ margin: 0 }}>
+            Loading live stock…
+          </span>
+        ) : error ? (
+          <span className="hint" style={{ margin: 0, color: "var(--error)" }}>
+            {error} — refresh to retry stock.
+          </span>
+        ) : (
+          <span className="hint status-strip-ready" style={{ margin: 0 }}>
+            Live stock ready
+          </span>
+        )}
+      </div>
 
       {step !== "done" && (
         <div className="steps">
@@ -191,7 +231,7 @@ export function BookingWizard() {
         </div>
       )}
 
-      {errors.length > 0 && step !== "done" && (
+      {showErrors && (
         <div className="alert" role="alert">
           {errors.map((e) => (
             <div key={e}>{e}</div>
@@ -224,7 +264,7 @@ export function BookingWizard() {
           onDinners={setDinners}
           onGarba={setGarba}
           onBack={() => setStep("tickets")}
-          onNext={() => setStep("review")}
+          onNext={goReview}
         />
       )}
 
@@ -244,9 +284,18 @@ export function BookingWizard() {
 
       {step === "done" && booking && <StepDone booking={booking} />}
 
-      {step !== "done" && quote?.ok && (
+      {step !== "done" && (
         <div className="sticky-total">
-          Estimated total · <strong>{quoting ? "…" : formatUsd(quote.totalCents)}</strong>
+          Estimated total ·{" "}
+          <strong>
+            {!catalogReady
+              ? "…"
+              : quote?.ok
+                ? quoting
+                  ? "…"
+                  : formatUsd(quote.totalCents)
+                : "—"}
+          </strong>
         </div>
       )}
     </div>
